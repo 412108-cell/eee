@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8-BIT 復古街機版：二分搜尋與動漫助手小奈 | Binary Search Anime Operator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts 引入經典像素與復古終端字型 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        /* 復古 CRT 基礎設定 */
+        body {
+            font-family: 'VT323', 'Noto Sans TC', monospace;
+            background-color: #0a0e08; /* 極深綠底色 */
+            background-image: radial-gradient(circle, #14220d 0%, #050804 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            color: #39ff14; /* 經典經典綠色磷光 */
+        }
+
+        /* 標題與像素專用字型 */
+        .font-pixel {
+            font-family: 'Press Start 2P', monospace;
+        }
+        .font-terminal {
+            font-family: 'VT323', monospace;
+        }
+
+        /* CRT 掃描線與微閃爍濾鏡效果 */
+        .crt::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+            z-index: 999;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+            opacity: 0.85;
+        }
+
+        /* 經典綠色螢幕真空管微光 */
+        .glow-green {
+            text-shadow: 0 0 8px rgba(57, 255, 20, 0.6);
+        }
+
+        /* 像素風格實心厚按鈕 (3D Tactile Click Style) */
+        .arcade-btn-indigo {
+            background-color: #4f46e5;
+            border: 4px solid #000000;
+            box-shadow: 4px 4px 0px 0px #000000;
+            transition: all 0.1s ease;
+        }
+        .arcade-btn-indigo:active {
+            transform: translate(3px, 3px);
+            box-shadow: 1px 1px 0px 0px #000000;
+        }
+
+        .arcade-btn-green {
+            background-color: #10b981;
+            border: 4px solid #000000;
+            box-shadow: 4px 4px 0px 0px #000000;
+            transition: all 0.1s ease;
+        }
+        .arcade-btn-green:active {
+            transform: translate(3px, 3px);
+            box-shadow: 1px 1px 0px 0px #000000;
+        }
+
+        .arcade-btn-dark {
+            background-color: #334155;
+            border: 4px solid #000000;
+            box-shadow: 4px 4px 0px 0px #000000;
+            transition: all 0.1s ease;
+        }
+        .arcade-btn-dark:active {
+            transform: translate(3px, 3px);
+            box-shadow: 1px 1px 0px 0px #000000;
+        }
+
+        /* 街機框體像素面板 */
+        .retro-panel {
+            background: rgba(10, 15, 8, 0.95);
+            border: 4px solid #39ff14;
+            box-shadow: inset 0 0 15px rgba(57, 255, 20, 0.2), 0 8px 0px 0px rgba(0,0,0,1);
+        }
+
+        .retro-panel-amber {
+            background: rgba(15, 12, 5, 0.95);
+            border: 4px solid #ffb300;
+            box-shadow: inset 0 0 15px rgba(255, 179, 0, 0.2), 0 8px 0px 0px rgba(0,0,0,1);
+        }
+
+        /* 數字卡片基礎樣式 - 8-Bit 卡匣風 */
+        .number-card {
+            border: 2px solid #1a3311;
+            background: #060a04;
+            transition: all 0.15s ease-out;
+            position: relative;
+        }
+
+        /* 活躍數字：綠色像素點亮 */
+        .number-active {
+            border: 2px solid #39ff14 !important;
+            color: #39ff14;
+            text-shadow: 0 0 4px rgba(57,255,20,0.5);
+        }
+        .number-active:hover {
+            background: #39ff14;
+            color: #000000 !important;
+            text-shadow: none;
+            transform: scale(1.08);
+            z-index: 5;
+        }
+
+        /* 被排除的無效數字：斷電死像素樣式 */
+        .number-excluded {
+            border: 2px dashed #141f11 !important;
+            color: #172413 !important;
+            opacity: 0.25;
+            background: #020402 !important;
+            pointer-events: none;
+            box-shadow: none !important;
+        }
+
+        /* 目前猜測的卡片 */
+        .number-current-guess {
+            background: #ff0055 !important;
+            border: 2px solid #ffffff !important;
+            color: #ffffff !important;
+            text-shadow: 0 0 6px #ffffff;
+            box-shadow: 0 0 15px #ff0055 !important;
+            transform: scale(1.15);
+            z-index: 10;
+            animation: retro-blink 0.5s steps(2, start) infinite;
+        }
+
+        /* LOW 邊界：動態閃爍下方指標 */
+        .border-low-indicator::after {
+            content: '▲ LOW';
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            font-weight: 900;
+            color: #39ff14;
+            text-shadow: 0 0 4px #39ff14;
+            z-index: 12;
+            white-space: nowrap;
+        }
+        .border-low-indicator {
+            border: 2px solid #39ff14 !important;
+            background: rgba(57, 255, 20, 0.15);
+            box-shadow: 0 0 8px #39ff14 !important;
+        }
+
+        /* HIGH 邊界：動態閃爍上方指標 */
+        .border-high-indicator::before {
+            content: '▼ HIGH';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            font-weight: 900;
+            color: #ffb300;
+            text-shadow: 0 0 4px #ffb300;
+            z-index: 12;
+            white-space: nowrap;
+        }
+        .border-high-indicator {
+            border: 2px solid #ffb300 !important;
+            background: rgba(255, 179, 0, 0.15);
+            box-shadow: 0 0 8px #ffb300 !important;
+        }
+
+        /* 最終命中目標 */
+        .number-target {
+            background: #39ff14 !important;
+            color: #000000 !important;
+            border: 2px solid #ffffff !important;
+            box-shadow: 0 0 25px #39ff14 !important;
+            transform: scale(1.2);
+            z-index: 15;
+        }
+
+        @keyframes retro-blink {
+            to { visibility: hidden; }
+        }
+
+        /* 自訂像素化虛擬進度條 */
+        .pixel-progress {
+            background-size: 20px 100%;
+            background-image: linear-gradient(90deg, transparent 90%, #000 90%);
+        }
+
+        /* 角色呼吸動畫 */
+        @keyframes mascot-bounce {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-4px) scale(0.98); }
+        }
+        .mascot-bounce {
+            animation: mascot-bounce 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="py-6 px-4 sm:px-6 lg:px-8 relative crt">
+
+    <!-- 用於勝利歡慶渲染的 Canvas 粒子畫布 -->
+    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-40 w-full h-full"></canvas>
+
+    <div class="max-w-6xl mx-auto relative z-10">
+        
+        <!-- 頂部街機框體控制列 -->
+        <div class="flex justify-between items-center mb-6 border-b-4 border-slate-800 pb-4">
+            <div class="flex items-center gap-2 font-pixel text-[10px] sm:text-xs">
+                <span class="w-3 h-3 bg-red-600 border border-black animate-pulse"></span>
+                <span class="text-red-500 tracking-wider">INSERT COIN</span>
+                <span class="text-slate-500">|</span>
+                <span class="text-emerald-400">CREDIT 99</span>
+            </div>
+            <!-- 聲控開關 -->
+            <button id="sound-toggle-btn" class="px-3 py-1.5 border-4 border-black bg-slate-800 text-slate-300 font-pixel text-[10px] active:translate-y-0.5 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2">
+                <i id="sound-icon" class="fa-solid fa-volume-high text-emerald-400"></i>
+                <span id="sound-text">SOUND: ON</span>
+            </button>
+        </div>
+
+        <!-- 街機標題螢幕 -->
+        <header class="text-center mb-8">
+            <div class="inline-flex items-center gap-2 px-3 py-1 border-2 border-dashed border-emerald-500/50 text-emerald-400 font-pixel text-[10px] tracking-widest mb-4">
+                <i class="fa-solid fa-gamepad"></i>
+                <span>RETRO ALGORITHM SYSTEM WITH ANIME ASSISTANT</span>
+            </div>
+            
+            <!-- 像素大標題 -->
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-3 text-white glow-green font-pixel leading-relaxed">
+                <span class="text-[#39ff14]">BINARY</span> SEARCH
+            </h1>
+            <p class="text-emerald-500 font-terminal text-lg sm:text-xl max-w-xl mx-auto">
+                [ 系統狀態: 記憶體配置完成。動態動漫 AI 女階「小奈」已載入晶片！ ] <br>
+                請在前輩最擅長的二分法邏輯指引下，完美攻克這個搜尋黑箱吧！
+            </p>
+        </header>
+
+        <!-- 主要佈局：控制台 & 記憶體網格 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- 左側主機板控制台 (5 cols) -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <!-- 街機中央面板 -->
+                <div class="retro-panel rounded-lg p-6 relative overflow-hidden">
+                    
+                    <div class="flex items-center justify-between mb-5 border-b-2 border-emerald-500/30 pb-3">
+                        <h2 class="text-lg font-pixel text-emerald-400 flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span>CPU REGISTERS</span>
+                        </h2>
+                        <span id="game-status-badge" class="font-pixel text-[10px] px-2 py-0.5 rounded bg-emerald-500 text-black font-bold">
+                            RUNNING
+                        </span>
+                    </div>
+
+                    <!-- 暫存器高精數據 (Low / Times / High) -->
+                    <div class="grid grid-cols-3 gap-3 mb-5 font-terminal text-2xl">
+                        <div class="bg-black/90 p-3 text-center border-2 border-slate-800">
+                            <span class="block text-xs text-slate-500 font-pixel text-[8px] mb-1">REG_LOW</span>
+                            <span id="low-val-display" class="font-black text-emerald-400">1</span>
+                        </div>
+                        <div class="bg-black/90 p-3 text-center border-2 border-slate-800">
+                            <span class="block text-xs text-slate-500 font-pixel text-[8px] mb-1">ATTEMPTS</span>
+                            <span id="attempts-display" class="font-black text-rose-500">0</span>
+                        </div>
+                        <div class="bg-black/90 p-3 text-center border-2 border-slate-800">
+                            <span class="block text-xs text-slate-500 font-pixel text-[8px] mb-1">REG_HIGH</span>
+                            <span id="high-val-display" class="font-black text-[#ffb300]">100</span>
+                        </div>
+                    </div>
+
+                    <!-- 遊戲計時器 -->
+                    <div class="bg-black/90 border-2 border-slate-800 rounded px-4 py-2.5 mb-5 flex items-center justify-between font-terminal">
+                        <div class="flex items-center gap-2 text-slate-500 text-sm font-pixel text-[9px]">
+                            <i class="fa-solid fa-clock text-rose-500 animate-pulse"></i>
+                            <span>TIME ATTACK</span>
+                        </div>
+                        <span id="stopwatch-display" class="text-2xl font-bold text-slate-200 tracking-wider">00:00.00</span>
+                    </div>
+
+                    <!-- 搜尋空間收斂與熵分析 -->
+                    <div class="mb-6 space-y-4">
+                        <div>
+                            <div class="flex justify-between font-terminal text-base text-emerald-400 mb-1.5">
+                                <span class="flex items-center gap-1">
+                                    <i class="fa-solid fa-compress"></i>
+                                    <span>搜尋空間壓縮比例 (RAM SPACE)</span>
+                                </span>
+                                <span id="range-percentage" class="font-bold">100.0%</span>
+                            </div>
+                            <!-- 像素風血條/進度條 -->
+                            <div class="w-full h-5 bg-black p-0.5 border-2 border-emerald-500">
+                                <div id="range-bar" class="h-full bg-emerald-500 pixel-progress transition-all duration-300" style="width: 100%"></div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center font-terminal text-base bg-black/50 p-2.5 border-2 border-slate-900">
+                            <span class="text-slate-500">目前信息不確定度 (ENTROPY)：</span>
+                            <span id="entropy-display" class="font-bold text-amber-500">6.64 Bits</span>
+                        </div>
+                    </div>
+
+                    <!-- 手動注入輸入表單 -->
+                    <div class="space-y-4">
+                        <div>
+                            <label for="guess-input" class="block font-pixel text-[9px] text-slate-400 mb-2">INPUT DATA VALUE (1-100)</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </div>
+                                <input type="number" id="guess-input" min="1" max="100" 
+                                       class="w-full pl-10 pr-32 py-3 bg-black border-4 border-black text-[#39ff14] text-2xl focus:outline-none focus:border-emerald-500 font-terminal transition"
+                                       placeholder="鍵入或點擊網格">
+                                <button id="ai-recommend-btn" title="AI 執行二分法推薦中間點"
+                                        class="absolute inset-y-1.5 right-1.5 px-3 bg-[#ffb300] border-2 border-black text-black font-pixel text-[8px] font-bold active:translate-y-0.5 transition-all shadow-[1px_1px_0px_rgba(0,0,0,1)]">
+                                    <span>推算 MID</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 pt-2">
+                            <button id="guess-btn" class="flex-1 py-3.5 text-white font-pixel text-xs arcade-btn-indigo tracking-widest uppercase">
+                                <i class="fa-solid fa-play-circle mr-1"></i> 執行預測 (ENTER)
+                            </button>
+                            <button id="reset-btn" class="px-5 py-3.5 text-white font-pixel text-xs arcade-btn-dark" title="重啟處理器">
+                                <i class="fa-solid fa-power-off"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心：動態動漫助手 (NANA) 互動終端 -->
+                <div class="retro-panel rounded-lg p-5 flex-1 flex flex-col sm:flex-row gap-4 items-center relative overflow-hidden">
+                    <!-- 左側：動漫女孩動態像素臉部 CRT 電影面板 -->
+                    <div class="w-24 h-24 bg-black border-4 border-emerald-500/40 flex flex-col items-center justify-center p-1 relative shrink-0 mascot-bounce shadow-[inset_0_0_10px_rgba(57,255,20,0.5)]">
+                        <div id="mascot-face" class="w-full h-full flex items-center justify-center">
+                            <!-- 由 JavaScript 動態繪製與著色 SVG 臉孔 -->
+                        </div>
+                        <span class="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-[#39ff14] text-black font-pixel text-[8px] px-1 font-bold shadow-md">NANA</span>
+                    </div>
+
+                    <!-- 右側：打字機文字框 -->
+                    <div class="flex-1 w-full flex flex-col justify-between h-full">
+                        <div>
+                            <h3 class="font-pixel text-[10px] text-emerald-400 mb-2 flex items-center gap-1.5 border-b border-emerald-500/20 pb-1">
+                                <i class="fa-solid fa-heart text-[9px] text-rose-500 animate-pulse"></i>
+                                <span>OPERATOR_GUIDE // 助手小奈</span>
+                            </h3>
+                            
+                            <!-- 打字機對話終端 -->
+                            <div id="feedback-message" class="text-base sm:text-lg font-terminal text-[#39ff14] min-h-[60px] max-h-[90px] overflow-y-auto leading-relaxed">
+                                &gt; 正在載入小奈的數位情感神經元模組...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 右側：數字矩陣 (7 cols) -->
+            <div class="lg:col-span-7 flex flex-col gap-4">
+                <div class="retro-panel rounded-lg p-6 flex-1 relative">
+                    
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b-2 border-emerald-500/30 pb-3">
+                        <div>
+                            <h2 class="text-lg font-pixel text-emerald-400 flex items-center gap-2">
+                                <i class="fa-solid fa-memory"></i>
+                                <span>MEMORY REGISTER BLOCK (1-100)</span>
+                            </h2>
+                            <p class="text-sm font-terminal text-emerald-600 mt-1">
+                                可行區間呈現點亮狀態。隨搜尋範圍改變，指標 L (LOW) 及 H (HIGH) 將會同步定位。
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 100 個數 Grid -->
+                    <div id="numbers-grid" class="grid grid-cols-10 gap-2 font-terminal text-lg">
+                        <!-- 數字卡片由 JavaScript 動態注入 -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 決策歷史軌跡 -->
+        <footer class="mt-8 retro-panel-amber rounded-lg p-5">
+            <h3 class="font-pixel text-[10px] text-[#ffb300] mb-3 flex items-center gap-2 border-b border-[#ffb300]/30 pb-2">
+                <i class="fa-solid fa-share-nodes"></i>
+                <span>DECISION_PATH (歷史決策暫存軌跡)</span>
+            </h3>
+            <div id="history-timeline" class="flex flex-wrap gap-2 text-base font-terminal">
+                <span class="text-amber-700 italic font-terminal">&gt; 暫存器目前無資料儲存...</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 勝利慶典賀卡 (Modal) -->
+    <div id="win-modal" class="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 opacity-0 pointer-events-none transition-all duration-500">
+        <div class="retro-panel-amber max-w-lg w-full mx-4 rounded-lg p-6 sm:p-8 border-4 border-[#ffb300] text-center shadow-2xl transform scale-90 transition-all duration-500" id="win-modal-content">
+            
+            <div class="w-16 h-16 bg-[#ffb300]/10 border-4 border-[#ffb300] text-[#ffb300] rounded-none flex items-center justify-center text-3xl mx-auto mb-4 animate-pulse">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            
+            <h2 class="text-xl sm:text-2xl font-pixel text-white mb-2 leading-relaxed">
+                🏆 BINGO! MISSION COMPLETE! 🏆
+            </h2>
+            <p class="text-amber-400 font-pixel text-[10px] tracking-wider mb-4">[ 核心目標精準命中 ]</p>
+            
+            <!-- 數據統計 -->
+            <div class="bg-black p-4 border-2 border-slate-900 mb-4 font-terminal text-lg">
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="border-r border-slate-900">
+                        <span class="block font-pixel text-[8px] text-slate-500 mb-1">TARGET_VAL</span>
+                        <span id="modal-target-num" class="text-2xl font-bold text-emerald-400">--</span>
+                    </div>
+                    <div class="border-r border-slate-900">
+                        <span class="block font-pixel text-[8px] text-slate-500 mb-1">TOTAL_TRY</span>
+                        <span id="modal-attempts" class="text-2xl font-bold text-rose-500">--</span>
+                    </div>
+                    <div>
+                        <span class="block font-pixel text-[8px] text-slate-500 mb-1">TIME_COST</span>
+                        <span id="modal-time" class="text-xl font-bold text-amber-500 flex h-7 items-center justify-center">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 新增：小奈現場動態祝賀/吐槽對話框 (RPG Style) -->
+            <div class="retro-panel rounded-lg p-4 bg-black flex flex-col sm:flex-row gap-4 items-center border-2 border-emerald-500/30 mb-5 relative overflow-hidden">
+                <!-- 小奈在結算視窗的專屬頭像 -->
+                <div class="w-16 h-16 bg-black border-2 border-emerald-500/40 flex items-center justify-center p-1 shrink-0 mascot-bounce shadow-[inset_0_0_8px_rgba(57,255,20,0.5)]">
+                    <div id="modal-mascot-face" class="w-full h-full flex items-center justify-center">
+                        <!-- 由 JS 繪製動態表情 -->
+                    </div>
+                </div>
+                <!-- 小奈語音內容 -->
+                <div class="text-left w-full flex-1">
+                    <span class="block font-pixel text-[8px] text-rose-500 mb-1">NANA_SPEECH // 小奈現場對話</span>
+                    <p id="modal-speech-text" class="font-terminal text-lg text-[#39ff14] leading-relaxed min-h-[50px] max-h-[100px] overflow-y-auto">
+                        &gt; 正在讀取小奈的心情資料流...
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-black/80 p-4 border-2 border-slate-900 mb-5 text-left font-terminal text-base leading-relaxed text-slate-300">
+                <span class="text-amber-500 font-pixel text-[9px] block mb-1">🔬 SYSTEM EVALUATION (性能診斷):</span>
+                <p id="evaluation-text">
+                    分析對局軌跡中...
+                </p>
+            </div>
+
+            <button id="modal-play-again-btn" class="w-full py-3.5 text-black font-pixel text-xs arcade-btn-green tracking-widest uppercase">
+                RESET SYSTEM & RUN AGAIN
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 復古 8-Bit 音效合成器 (Web Audio API) ---
+        class SoundSynth {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            play(type) {
+                if (!this.enabled) return;
+                this.init();
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+
+                switch (type) {
+                    case 'click':
+                        this.triggerBeep(300, 0.05, 'triangle', 0.15); // 三角波模仿老按鍵音
+                        break;
+                    case 'ai':
+                        this.triggerSweep(400, 1200, 0.2, 'square', 0.1); // 經典讀寫方波
+                        break;
+                    case 'high': // 猜太大
+                        this.triggerBeep(600, 0.1, 'square', 0.1);
+                        setTimeout(() => this.triggerBeep(300, 0.15, 'square', 0.1), 80);
+                        break;
+                    case 'low': // 猜太小
+                        this.triggerBeep(300, 0.1, 'square', 0.1);
+                        setTimeout(() => this.triggerBeep(600, 0.15, 'square', 0.1), 80);
+                        break;
+                    case 'win': // 勝利琶音 (經典關卡結束)
+                        const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+                        notes.forEach((freq, index) => {
+                            setTimeout(() => {
+                                this.triggerBeep(freq, 0.25, 'triangle', 0.15);
+                            }, index * 100);
+                        });
+                        break;
+                    case 'error':
+                        this.triggerBeep(100, 0.3, 'sawtooth', 0.2); // 鋸齒波故障音
+                        break;
+                    case 'talk': // 小奈對話打字聲 (模仿可愛的 8-bit 動漫配音)
+                        this.triggerBeep(Math.random() * 200 + 750, 0.035, 'square', 0.04);
+                        break;
+                }
+            }
+
+            triggerBeep(freq, duration, oscType, volume) {
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.type = oscType;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    
+                    gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            triggerSweep(startFreq, endFreq, duration, oscType, volume) {
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.type = oscType;
+                    osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(endFreq, this.ctx.currentTime + duration);
+                    
+                    gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+
+        const synth = new SoundSynth();
+
+        // 聲控開關綁定
+        const soundToggleBtn = document.getElementById('sound-toggle-btn');
+        const soundIcon = document.getElementById('sound-icon');
+        const soundText = document.getElementById('sound-text');
+        
+        soundToggleBtn.addEventListener('click', () => {
+            synth.enabled = !synth.enabled;
+            if (synth.enabled) {
+                synth.init();
+                soundIcon.className = 'fa-solid fa-volume-high text-emerald-400';
+                soundText.textContent = 'SOUND: ON';
+                synth.play('click');
+            } else {
+                soundIcon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                soundText.textContent = 'SOUND: OFF';
+            }
+        });
+
+
+        // --- 8-Bit 像素粒子特效系統 (純代碼) ---
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let animationFrameId = null;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class PixelParticle {
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height * 0.6;
+                this.size = Math.random() * 8 + 6; // Chunky pixels
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 10 + 5;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed - 4; 
+                this.gravity = 0.25;
+                // NES 調色盤風格顏色
+                const retroColors = ['#ff0055', '#39ff14', '#ffb300', '#00e5ff', '#ff00ff', '#ffffff'];
+                this.color = retroColors[Math.floor(Math.random() * retroColors.length)];
+                this.opacity = 1;
+                this.decay = Math.random() * 0.012 + 0.008;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.opacity -= this.decay;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.opacity;
+                ctx.fillStyle = this.color;
+                // 畫出方形的像素點，而非圓形粒子
+                ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        function spawnConfetti() {
+            for (let i = 0; i < 120; i++) {
+                particles.push(new PixelParticle());
+            }
+        }
+
+        function animateConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles = particles.filter(p => p.opacity > 0);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            if (particles.length > 0) {
+                animationFrameId = requestAnimationFrame(animateConfetti);
+            }
+        }
+
+        function startVictoryCelebration() {
+            cancelAnimationFrame(animationFrameId);
+            particles = [];
+            spawnConfetti();
+            animateConfetti();
+            setTimeout(() => { spawnConfetti(); }, 500);
+        }
+
+
+        // --- 毫秒計時器 (Stopwatch) ---
+        let startTime = null;
+        let timerInterval = null;
+        let elapsedMilliseconds = 0;
+        let timerRunning = false;
+
+        function startTimer() {
+            if (timerRunning) return;
+            timerRunning = true;
+            startTime = Date.now() - elapsedMilliseconds;
+            timerInterval = setInterval(updateTimerDisplay, 10);
+        }
+
+        function stopTimer() {
+            if (!timerRunning) return;
+            timerRunning = false;
+            clearInterval(timerInterval);
+        }
+
+        function resetTimer() {
+            stopTimer();
+            elapsedMilliseconds = 0;
+            document.getElementById('stopwatch-display').textContent = '00:00.00';
+        }
+
+        function updateTimerDisplay() {
+            elapsedMilliseconds = Date.now() - startTime;
+            document.getElementById('stopwatch-display').textContent = formatTime(elapsedMilliseconds);
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const centiseconds = Math.floor((ms % 1000) / 10);
+
+            const mStr = minutes.toString().padStart(2, '0');
+            const sStr = seconds.toString().padStart(2, '0');
+            const cStr = centiseconds.toString().padStart(2, '0');
+
+            return `${mStr}:${sStr}.${cStr}`;
+        }
+
+
+        // --- 小奈 (NANA) 動態動漫女孩表情 SVG 繪製系統 ---
+        // 增加 targetId 參數，以便同時支援主畫面和 Modal 畫面渲染
+        function updateMascotFace(state, targetId = 'mascot-face') {
+            const container = document.getElementById(targetId);
+            if (!container) return;
+
+            let faceColor = "#39ff14"; // 基底發光色
+            let blushSvg = "";
+            let eyeSvg = "";
+            let mouthSvg = "";
+            let emotionBg = "rgba(5, 15, 8, 0.95)";
+
+            switch (state) {
+                case 'idle': // 正常親切表情 (眨眼笑)
+                    faceColor = "#39ff14";
+                    eyeSvg = `
+                        <!-- 左眼：閃亮大眼睛 -->
+                        <rect x="22" y="28" width="4" height="6" fill="${faceColor}" />
+                        <rect x="24" y="26" width="2" height="2" fill="${faceColor}" />
+                        <!-- 右眼：閃亮大眼睛 -->
+                        <rect x="38" y="28" width="4" height="6" fill="${faceColor}" />
+                        <rect x="40" y="26" width="2" height="2" fill="${faceColor}" />
+                        <!-- 眼部高光 -->
+                        <rect x="22" y="28" width="2" height="2" fill="#ffffff" />
+                        <rect x="38" y="28" width="2" height="2" fill="#ffffff" />
+                    `;
+                    mouthSvg = `<rect x="30" y="38" width="4" height="2" fill="${faceColor}" />`;
+                    break;
+
+                case 'think': // 思考中 (瞇眼微笑，戴著護目罩/發光藍)
+                    faceColor = "#00e5ff"; // 科技藍
+                    emotionBg = "rgba(5, 12, 15, 0.95)";
+                    eyeSvg = `
+                        <!-- 微瞇閃爍眼 -->
+                        <path d="M20,28 L26,28" stroke="${faceColor}" stroke-width="2" stroke-linecap="square" />
+                        <path d="M38,28 L44,28" stroke="${faceColor}" stroke-width="2" stroke-linecap="square" />
+                        <!-- 科技眼鏡全息線 -->
+                        <line x1="14" y1="28" x2="50" y2="28" stroke="${faceColor}" stroke-dasharray="2 2" stroke-width="1" />
+                    `;
+                    mouthSvg = `<path d="M29,38 Q32,35 35,38" stroke="${faceColor}" stroke-width="2" fill="none" />`;
+                    break;
+
+                case 'warning': // 異常太大/太小 (臉紅，驚慌失措表情)
+                    faceColor = "#ffb300"; // 警示橘
+                    emotionBg = "rgba(15, 12, 5, 0.95)";
+                    blushSvg = `
+                        <!-- 雙頰腮紅紅暈 -->
+                        <rect x="18" y="34" width="4" height="2" fill="#ff0055" opacity="0.6" />
+                        <rect x="42" y="34" width="4" height="2" fill="#ff0055" opacity="0.6" />
+                    `;
+                    eyeSvg = `
+                        <!-- 八字驚慌眼 >_< -->
+                        <path d="M20,26 L26,30 M26,26 L20,30" stroke="${faceColor}" stroke-width="2" />
+                        <path d="M38,26 L44,30 M44,26 L38,30" stroke="${faceColor}" stroke-width="2" />
+                    `;
+                    mouthSvg = `
+                        <!-- 小圓形驚訝嘴 -->
+                        <rect x="29" y="36" width="6" height="6" fill="none" stroke="${faceColor}" stroke-width="2" />
+                    `;
+                    break;
+
+                case 'error': // 輸入錯誤 / 搞砸了 (委屈傲嬌，眼帶淚光，生氣嘟嘴)
+                    faceColor = "#ff0055"; // 錯誤紅
+                    emotionBg = "rgba(15, 5, 8, 0.95)";
+                    blushSvg = `
+                        <!-- 腮紅 -->
+                        <rect x="18" y="34" width="6" height="2" fill="#ff0055" />
+                        <rect x="40" y="34" width="6" height="2" fill="#ff0055" />
+                    `;
+                    eyeSvg = `
+                        <!-- 生氣斜眼/淚眼 / \ -->
+                        <path d="M20,30 L26,26" stroke="${faceColor}" stroke-width="3" />
+                        <path d="M44,30 L38,26" stroke="${faceColor}" stroke-width="3" />
+                    `;
+                    mouthSvg = `
+                        <!-- 嘟起的倒 U 嘴 ︵ -->
+                        <path d="M28,38 Q32,34 36,38" stroke="${faceColor}" stroke-width="3" fill="none" />
+                    `;
+                    break;
+
+                case 'happy': // 成功猜中答案！ (幸福的雙眼笑，大紅臉)
+                    faceColor = "#39ff14";
+                    blushSvg = `
+                        <!-- 大片開心的粉紅腮紅 -->
+                        <rect x="18" y="34" width="6" height="3" fill="#ff00ff" />
+                        <rect x="40" y="34" width="6" height="3" fill="#ff00ff" />
+                    `;
+                    eyeSvg = `
+                        <!-- 彎彎的愛心笑眼 ^_^ -->
+                        <path d="M18,29 Q23,21 28,29" stroke="${faceColor}" stroke-width="3" fill="none" />
+                        <path d="M36,29 Q41,21 46,29" stroke="${faceColor}" stroke-width="3" fill="none" />
+                    `;
+                    mouthSvg = `
+                        <!-- 張嘴大笑 凹 -->
+                        <path d="M26,36 Q32,46 38,36" stroke="${faceColor}" stroke-width="3" fill="none" />
+                        <rect x="29" y="36" width="6" height="3" fill="#ff0055" />
+                    `;
+                    break;
+            }
+
+            // 動漫像素女孩 (NANA) 精緻手製 SVG
+            container.innerHTML = `
+                <svg class="w-full h-full" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 面板背光 -->
+                    <rect x="6" y="8" width="52" height="48" rx="4" fill="${emotionBg}" stroke="${faceColor}" stroke-width="3" />
+                    
+                    <!-- 像素馬尾 (左/右) -->
+                    <rect x="2" y="16" width="6" height="18" fill="#ff0055" stroke="#4d001a" stroke-width="1" />
+                    <rect x="56" y="16" width="6" height="18" fill="#ff0055" stroke="#4d001a" stroke-width="1" />
+                    
+                    <!-- 後髮基底 -->
+                    <rect x="12" y="14" width="40" height="34" fill="#4d001a" />
+                    
+                    <!-- 臉部皮膚 -->
+                    <rect x="16" y="20" width="32" height="26" fill="#ffe2c4" />
+                    
+                    <!-- 平瀏海 (經典動漫平瀏海姬髮式) -->
+                    <rect x="14" y="14" width="36" height="10" fill="#ff0055" />
+                    <rect x="14" y="24" width="4" height="10" fill="#ff0055" />
+                    <rect x="46" y="24" width="4" height="10" fill="#ff0055" />
+                    
+                    <!-- 可愛髮箍 -->
+                    <path d="M12,14 Q32,6 52,14" stroke="#ffb300" stroke-width="2" fill="none" />
+                    <rect x="30" y="6" width="4" height="4" fill="#ff0055" />
+
+                    <!-- 未來耳機/貓耳特徵 -->
+                    <rect x="10" y="24" width="4" height="10" fill="#2d2a26" rx="1" stroke="${faceColor}" stroke-width="1" />
+                    <rect x="50" y="24" width="4" height="10" fill="#2d2a26" rx="1" stroke="${faceColor}" stroke-width="1" />
+                    
+                    <!-- 動態腮紅 -->
+                    ${blushSvg}
+                    
+                    <!-- 動態眼眉與嘴部 -->
+                    ${eyeSvg}
+                    ${mouthSvg}
+                </svg>
+            `;
+        }
+
+
+        // --- 像素打字機效果 + 音效合成器整合器 (主畫面) ---
+        let typewriterTimeout = null;
+
+        function playTypewriterMessage(text, mascotState = 'idle') {
+            // 切換小奈表情
+            updateMascotFace(mascotState, 'mascot-face');
+
+            const feedbackElem = document.getElementById('feedback-message');
+            if (!feedbackElem) return;
+
+            // 清除之前的打字任務
+            if (typewriterTimeout) {
+                clearTimeout(typewriterTimeout);
+            }
+
+            feedbackElem.innerHTML = "&gt; ";
+            let charIndex = 0;
+
+            function typeChar() {
+                if (charIndex < text.length) {
+                    const char = text.charAt(charIndex);
+                    
+                    feedbackElem.innerHTML += char;
+                    
+                    // 打字啵啵語音音效
+                    if (char !== " " && charIndex % 2 === 0) {
+                        synth.play('talk');
+                    }
+
+                    charIndex++;
+                    typewriterTimeout = setTimeout(typeChar, 25); // 打字間隔 25ms
+                }
+            }
+
+            typeChar();
+        }
+
+        // --- 像素打字機效果 (結算 Modal 專用) ---
+        let modalTypewriterTimeout = null;
+
+        function playModalTypewriterMessage(text, mascotState = 'happy') {
+            // 切換結算畫面小奈表情
+            updateMascotFace(mascotState, 'modal-mascot-face');
+
+            const feedbackElem = document.getElementById('modal-speech-text');
+            if (!feedbackElem) return;
+
+            if (modalTypewriterTimeout) {
+                clearTimeout(modalTypewriterTimeout);
+            }
+
+            feedbackElem.innerHTML = "&gt; ";
+            let charIndex = 0;
+
+            function typeChar() {
+                if (charIndex < text.length) {
+                    const char = text.charAt(charIndex);
+                    
+                    feedbackElem.innerHTML += char;
+                    
+                    // 語音音效
+                    if (char !== " " && charIndex % 2 === 0) {
+                        synth.play('talk');
+                    }
+
+                    charIndex++;
+                    modalTypewriterTimeout = setTimeout(typeChar, 30); // 結算字句稍微慢一點點更顯感情
+                }
+            }
+
+            typeChar();
+        }
+
+
+        // --- 小奈 (NANA) 語意台詞庫 ---
+        const DIALOGUE_STORE = {
+            boot: [
+                "哼！前輩，你終於開啟模擬器了！這次小奈已經把目標數字在暫存區鎖死囉！聽說你在 7 次內一定能抓到？不准在小奈面前出醜哦！",
+                "硬體與小奈的情感神經晶片同步成功！前輩，暫存器準備好了，趕快來一場優雅的二分搜尋吧！",
+                "逼逼！前輩，不許隨便瞎猜！乖乖使用 Mid（中間值）法，小奈可是會看著你的每一步操作的！"
+            ],
+            tooHigh: [
+                "哇啊！這個猜測值 ${guess} 太大了啦！前輩的輸入把小奈的核心溫度烤得熱烘烘的...上限必須無情地被砍掉了！",
+                "太高了太高了！這已經遠超極限。前輩快點，小奈幫你把當前上限 [HIGH] 往下調，要感謝我哦！",
+                "逼啵... 偵測到數值溢出！目標肯定比 ${guess} 還要小！看我一刀把不合規的記憶體網格全部斷電！"
+            ],
+            tooLow: [
+                "唔...太低了啦！前輩的猜測讓小奈的電晶體在發抖。目標比這還要大，下限必須抬升！",
+                "不夠高！再加大點電壓！我們需要趕緊拉高 [LOW] 邊界。下半部分的垃圾記憶體已經被小奈全扔啦！",
+                "數據量不足！${guess} 比目標還要小呢。小奈提示前輩：下限往上推，搜尋空間給我再度對折！"
+            ],
+            aiRecommend: [
+                "哼...看在前輩這麼苦惱的份上，小奈就勉強動用我的神經網路幫你算一下中間值吧！",
+                "逼逼啵啵... 系統推導出最優中間位置：$Mid = \\lfloor \\frac{L + H}{2} \\rfloor = ${mid}$。聽我的肯定沒錯！",
+                "笨、笨蛋前輩，別猶豫了！根據資訊論，點擊這個黃金對剖點，不確定度會瞬間打對折哦！"
+            ],
+            invalidRange: [
+                "前輩是大笨蛋嗎？！明明可行範圍是 [${low}, ${high}]，你偏偏要猜 ${guess}，這是在故意逗小奈玩嗎？！",
+                "警告！前輩正在進行無效記憶體存取！明明大家都知道範圍是 [${low}, ${high}]，你怎麼亂輸入 ${guess} 啦？"
+            ],
+            errorParse: [
+                "記憶體讀取失敗！請輸入 1 到 100 之間的『整數』好不好？前輩不准搗亂！",
+                "輸入解析錯誤！逼逼... 小奈的 CPU 無法辨識這個無效字元！"
+            ]
+        };
+
+        function getMascotSpeech(category, variables = {}) {
+            const list = DIALOGUE_STORE[category];
+            let template = list[Math.floor(Math.random() * list.length)];
+            
+            // 替換模板變數
+            for (let key in variables) {
+                template = template.replaceAll(`\${${key}}`, variables[key]);
+            }
+            return template;
+        }
+
+
+        // --- 核心遊戲變數 ---
+        let targetNumber;
+        let low;
+        let high;
+        let attempts;
+        let gameOver;
+        let history;
+
+        // DOM Elements
+        const numbersGrid = document.getElementById('numbers-grid');
+        const lowValDisplay = document.getElementById('low-val-display');
+        const highValDisplay = document.getElementById('high-val-display');
+        const attemptsDisplay = document.getElementById('attempts-display');
+        const rangeBar = document.getElementById('range-bar');
+        const rangePercentage = document.getElementById('range-percentage');
+        const entropyDisplay = document.getElementById('entropy-display');
+        const guessInput = document.getElementById('guess-input');
+        const guessBtn = document.getElementById('guess-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const aiRecommendBtn = document.getElementById('ai-recommend-btn');
+        const gameStatusBadge = document.getElementById('game-status-badge');
+        const historyTimeline = document.getElementById('history-timeline');
+
+        // Modal Elements
+        const winModal = document.getElementById('win-modal');
+        const winModalContent = document.getElementById('win-modal-content');
+        const modalTargetNum = document.getElementById('modal-target-num');
+        const modalAttempts = document.getElementById('modal-attempts');
+        const modalTime = document.getElementById('modal-time');
+        const evaluationText = document.getElementById('evaluation-text');
+        const modalPlayAgainBtn = document.getElementById('modal-play-again-btn');
+
+        // --- 啟動初始化 ---
+        function initGame() {
+            targetNumber = Math.floor(Math.random() * 100) + 1;
+            console.log(`%c[CORE] TARGET KEY ENCRYPTED: ${targetNumber}`, "color: #ffb300; font-weight: bold; font-family: monospace;");
+
+            low = 1;
+            high = 100;
+            attempts = 0;
+            gameOver = false;
+            history = [];
+
+            // UI 初始化
+            lowValDisplay.textContent = low;
+            highValDisplay.textContent = high;
+            attemptsDisplay.textContent = attempts;
+            
+            guessInput.value = '';
+            guessInput.disabled = false;
+            guessBtn.disabled = false;
+            aiRecommendBtn.disabled = false;
+
+            gameStatusBadge.textContent = "RUNNING";
+            gameStatusBadge.className = "font-pixel text-[10px] px-2 py-0.5 rounded bg-emerald-500 text-black font-bold";
+
+            // 觸發小奈首次語音
+            const startSpeech = getMascotSpeech('boot');
+            playTypewriterMessage(startSpeech, 'idle');
+
+            historyTimeline.innerHTML = `<span class="text-amber-700 italic font-terminal">&gt; 暫存器目前無資料儲存...</span>`;
+
+            resetTimer();
+            renderGrid();
+            updateVisualization();
+            closeModal();
+        }
+
+        // --- 渲染數字網格 ---
+        function renderGrid() {
+            numbersGrid.innerHTML = '';
+            for (let i = 1; i <= 100; i++) {
+                const card = document.createElement('div');
+                card.id = `num-${i}`;
+                card.textContent = i;
+                card.className = `number-card aspect-square flex items-center justify-center font-bold text-base rounded border cursor-pointer select-none number-active`;
+                
+                card.addEventListener('click', () => {
+                    if (gameOver) return;
+                    synth.play('click');
+                    if (i < low || i > high) {
+                        const warnSpeech = getMascotSpeech('invalidRange', { guess: i, low: low, high: high });
+                        playTypewriterMessage(warnSpeech, 'warning');
+                        synth.play('error');
+                        return;
+                    }
+                    guessInput.value = i;
+                    guessInput.focus();
+                });
+
+                numbersGrid.appendChild(card);
+            }
+        }
+
+        // --- 動態邊界視覺更新 ---
+        function updateVisualization(currentGuess = null) {
+            lowValDisplay.textContent = low;
+            highValDisplay.textContent = high;
+            attemptsDisplay.textContent = attempts;
+
+            // 剩餘百分比
+            const currentRangeSize = (high - low) + 1;
+            const percentage = Math.round((currentRangeSize / 100) * 100);
+            rangePercentage.textContent = `${percentage}.0% REMAIN`;
+            rangeBar.style.width = `${percentage}%`;
+
+            // 資訊熵估算
+            const entropy = (currentRangeSize > 0) ? Math.log2(currentRangeSize).toFixed(2) : 0;
+            entropyDisplay.textContent = `${entropy} Bits`;
+
+            for (let i = 1; i <= 100; i++) {
+                const card = document.getElementById(`num-${i}`);
+                if (!card) continue;
+
+                card.className = 'number-card aspect-square flex items-center justify-center font-bold text-base rounded border select-none transition-all duration-150';
+
+                if (gameOver && i === targetNumber) {
+                    card.classList.add('number-target');
+                } else if (i === currentGuess) {
+                    card.classList.add('number-current-guess');
+                } else if (i >= low && i <= high) {
+                    card.classList.add('number-active');
+                    
+                    // 動態貼上 L / H 邊界特殊樣式
+                    if (i === low) {
+                        card.classList.add('border-low-indicator');
+                    }
+                    if (i === high) {
+                        card.classList.add('border-high-indicator');
+                    }
+                } else {
+                    card.classList.add('number-excluded');
+                }
+            }
+        }
+
+        // --- 核心：猜測邏輯 ---
+        function handleGuess() {
+            if (gameOver) return;
+
+            const inputVal = guessInput.value.trim();
+            const guess = parseInt(inputVal, 10);
+
+            // 基礎檢驗
+            if (isNaN(guess) || guess < 1 || guess > 100) {
+                const errSpeech = getMascotSpeech('errorParse');
+                playTypewriterMessage(errSpeech, 'error');
+                synth.play('error');
+                return;
+            }
+
+            // 初次觸發計時器
+            if (attempts === 0) {
+                startTimer();
+            }
+
+            // 如果猜了界限外的值，小奈會吐槽
+            if (guess < low || guess > high) {
+                const outSpeech = getMascotSpeech('invalidRange', { guess: guess, low: low, high: high });
+                playTypewriterMessage(outSpeech, 'warning');
+                synth.play('error');
+                return;
+            }
+
+            attempts++;
+            history.push(guess);
+
+            // 更新軌跡暫存器
+            updateHistoryUI(guess);
+
+            if (guess === targetNumber) {
+                gameOver = true;
+                stopTimer();
+                synth.play('win');
+                updateVisualization(guess);
+                triggerWin();
+            } else if (guess < targetNumber) {
+                // 猜太小
+                synth.play('low');
+                low = Math.max(low, guess + 1);
+                
+                const lowSpeech = getMascotSpeech('tooLow', { guess: guess });
+                playTypewriterMessage(lowSpeech, 'warning');
+
+                updateVisualization(guess);
+            } else {
+                // 猜太大
+                synth.play('high');
+                high = Math.min(high, guess - 1);
+
+                const highSpeech = getMascotSpeech('tooHigh', { guess: guess });
+                playTypewriterMessage(highSpeech, 'warning');
+
+                updateVisualization(guess);
+            }
+
+            if (low > high) {
+                low = high;
+            }
+
+            guessInput.value = '';
+            guessInput.focus();
+        }
+
+        // --- 更新軌跡 UI ---
+        function updateHistoryUI(latestGuess) {
+            if (history.length === 1) {
+                historyTimeline.innerHTML = '';
+            }
+
+            let badgeStyle = "bg-black border-slate-800 text-slate-300";
+            let stateArrow = "";
+
+            if (latestGuess === targetNumber) {
+                badgeStyle = "bg-emerald-900/50 border-emerald-500 text-emerald-400";
+                stateArrow = "<i class='fa-solid fa-crosshairs text-emerald-400 mr-1 animate-ping'></i>";
+            } else if (latestGuess < targetNumber) {
+                badgeStyle = "bg-[#14220d] border-emerald-500/50 text-emerald-400";
+                stateArrow = "<i class='fa-solid fa-chevron-up text-emerald-400 mr-1'></i>";
+            } else {
+                badgeStyle = "bg-amber-950/50 border-amber-500 text-amber-500";
+                stateArrow = "<i class='fa-solid fa-chevron-down text-amber-500 mr-1'></i>";
+            }
+
+            const badge = document.createElement('div');
+            badge.className = `px-3 py-1 border-2 text-base font-terminal flex items-center gap-1 ${badgeStyle}`;
+            badge.innerHTML = `${stateArrow}TRY_${attempts}: ${latestGuess}`;
+            
+            historyTimeline.appendChild(badge);
+        }
+
+        // --- 推薦 Mid ---
+        function recommendMid() {
+            if (gameOver) return;
+            synth.play('ai');
+            const mid = Math.floor((low + high) / 2);
+            guessInput.value = mid;
+            guessInput.focus();
+
+            const aiSpeech = getMascotSpeech('aiRecommend', { mid: mid, low: low, high: high });
+            playTypewriterMessage(aiSpeech, 'think');
+        }
+
+        // --- 勝利結算 (帶有結算對話) ---
+        function triggerWin() {
+            gameStatusBadge.textContent = "SOLVED";
+            gameStatusBadge.className = "font-pixel text-[10px] px-2 py-0.5 rounded bg-emerald-500 text-black font-bold animate-pulse";
+            
+            guessInput.disabled = true;
+            guessBtn.disabled = true;
+            aiRecommendBtn.disabled = true;
+
+            // 寫入結算彈窗數據
+            modalTargetNum.textContent = targetNumber;
+            modalAttempts.textContent = attempts;
+            modalTime.textContent = formatTime(elapsedMilliseconds);
+
+            // 績效診斷評語與小奈通關特別賀語、動態臉部表情
+            let feedbackText = "";
+            let finalMascotSpeech = "";
+            let finalMascotEmotion = "happy";
+            
+            if (attempts === 1) {
+                feedbackText = "【SS級・黃金天選者】1% 的神蹟概率！前輩的指尖與宇宙電磁波產生了完美的二進位共振！";
+                finalMascotSpeech = "騙、騙人吧？！居然是一擊必殺？！前輩你是不是私自讀取了小奈的暫存區記憶體？哼，大作弊！不過...好厲害...( >﹏< )";
+                finalMascotEmotion = "happy";
+            } else if (attempts <= 5) {
+                feedbackText = "【S級・高效演算工程師】令人敬畏的效率！完全掌控了區間二分收縮法，乾淨俐落地抓出了目標變數！";
+                finalMascotSpeech = "太、太過分地厲害了！前輩的思維調度速度简直比小奈的核心量子處理晶片還要快！小奈...稍微對你刮目相看了哦！🚀";
+                finalMascotEmotion = "happy";
+            } else if (attempts <= 7) {
+                feedbackText = "【A級・完美對分大師】精準的對分決策。每一步都落在經典演算法的最優解框架中，這是完美程式碼的體現！";
+                finalMascotSpeech = "完美的 $O(\\log n)$ 控制流程！前輩每次都確實切在最理想的中間值呢，這就是演算法收斂的極致藝術，小奈承認你很強了啦！🎓";
+                finalMascotEmotion = "idle";
+            } else if (attempts <= 10) {
+                feedbackText = "【B級・常規編譯處理】成功取得變數，但有些步驟的中間值估計不夠精確。快點擊 AI Mid 演練最理想的收縮曲線。";
+                finalMascotSpeech = "呼，雖然找到了...但小奈算了一下，前輩剛才根本沒有好好踩在中位點上對不對？下次要乖乖聽小奈的指導哦，知道嗎？";
+                finalMascotEmotion = "think";
+            } else {
+                feedbackText = "【C級・線性搜尋警告】雖然通關，但效率接近窮舉。要記住，只要每次都砍在一半的中間值（Mid），最多只需要 7 次即能必勝喔！";
+                finalMascotSpeech = "嗚哇！前輩你這是用最笨的線性搜尋 (O(n)) 在跑小奈的記憶體吧？小奈的核心都要過熱爆炸了！下次一定要用二分法，大笨蛋！";
+                finalMascotEmotion = "error";
+            }
+            
+            evaluationText.textContent = feedbackText;
+            
+            // 同時更新主畫面文字與結算畫面內小奈的現場語音 (打字機效果 + 表情轉變)
+            playTypewriterMessage(finalMascotSpeech, finalMascotEmotion);
+            playModalTypewriterMessage(finalMascotSpeech, finalMascotEmotion);
+
+            // 啟動 8-Bit 方塊噴發特效
+            startVictoryCelebration();
+
+            // 顯示 Modal
+            winModal.classList.remove('opacity-0', 'pointer-events-none');
+            winModalContent.classList.remove('scale-90');
+            winModalContent.classList.add('scale-100');
+        }
+
+        function closeModal() {
+            winModal.classList.add('opacity-0', 'pointer-events-none');
+            winModalContent.classList.remove('scale-100');
+            winModalContent.classList.add('scale-90');
+        }
+
+        // --- 事件監聽 ---
+        guessBtn.addEventListener('click', () => {
+            synth.play('click');
+            handleGuess();
+        });
+        
+        guessInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                synth.play('click');
+                handleGuess();
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            synth.play('click');
+            initGame();
+        });
+
+        aiRecommendBtn.addEventListener('click', recommendMid);
+        modalPlayAgainBtn.addEventListener('click', () => {
+            synth.play('click');
+            initGame();
+        });
+
+        // 頁面載入
+        window.onload = function() {
+            initGame();
+        };
+    </script>
+</body>
+</html>
